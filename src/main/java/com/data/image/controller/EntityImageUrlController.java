@@ -2,13 +2,9 @@ package com.data.image.controller;
 
 import com.data.image.models.EntityImageUrl;
 import com.data.image.service.EntityImageUrlService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.function.EntityResponse;
 
-import java.net.http.HttpClient;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 

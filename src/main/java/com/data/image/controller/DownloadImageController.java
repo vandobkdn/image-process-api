@@ -20,7 +20,7 @@ public class DownloadImageController {
     }
 
     @PostMapping(value = "/download")
-    public ResponseEntity<Void> downloadImage(@RequestBody EntityImageUrl entityImageUrl) throws IOException {
+    public ResponseEntity<Void> downloadImage(@RequestBody EntityImageUrl entityImageUrl) throws IOException, InterruptedException {
         imageStorageService.downloadImage(entityImageUrl);
         return new ResponseEntity<Void>(HttpStatus.OK);
     }

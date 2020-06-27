@@ -1,16 +1,15 @@
 package com.data.image.service;
 
 import com.data.image.models.EntityImageUrl;
-import com.data.image.threads.DownLoadTask;
+import com.data.image.task.DownloadImageTask;
+import com.data.image.task.ManipulateDirectoryTask;
+import com.data.image.task.UploadImageFromLocalTask;
+import com.data.image.task.UploadImageTask;
+import com.data.image.uitls.Constants;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -20,44 +19,40 @@ import java.util.concurrent.Executors;
 @Service
 public class ImageStorageService {
 
-    private static Path uploadPath;
-    private static Path downloadPath = Paths.get("./images/download");
-
-    public void downloadImage(EntityImageUrl imageUrl) {
+    public void downloadImage(EntityImageUrl imageUrl) throws IOException, InterruptedException {
         List<String> imageUrls = imageUrl.getImageUrls();
+        String entity = imageUrl.getEntity();
         ExecutorService executor = Executors.newCachedThreadPool();
-        imageUrls.forEach(url -> {
-            executor.execute(new DownLoadTask(this, url, imageUrl.getEntity()) );
-        });
-        System.out.println("done!");
+        for (int i = 0; i < imageUrls.size(); i++) {
+            executor.execute(new DownloadImageTask(imageUrls.get(i), entity, i));
+        }
+        System.out.println("Finished download!!");
     }
 
-    private void createDirectory(String file) {
-        File f = new File(file);
-        try{
-            if(f.mkdirs()) {
-                System.out.println("Directory Created");
-            } else {
-                System.out.println("Directory is not created");
+    public void uploadImage(EntityImageUrl imageUrl) throws IOException, InterruptedException {
+        List<String> imageUrls = imageUrl.getImageUrls();
+        String entity = imageUrl.getEntity();
+        ExecutorService executor = Executors.newCachedThreadPool();
+        ManipulateDirectoryTask manipulator = ManipulateDirectoryTask.getInstance();
+        for (int i = 0; i< imageUrls.size(); i++) {
+            String targetPath = manipulator.createCloudObject(entity, manipulator.createImageName(entity, i));
+            executor.execute(new UploadImageTask(imageUrls.get(i), targetPath));
+        }
+        System.out.println("Finished upload!!");
+    }
+
+    public void uploadImageFromLocal(EntityImageUrl imageUrl) throws IOException {
+        String entity = imageUrl.getEntity();
+        ManipulateDirectoryTask manipulator = ManipulateDirectoryTask.getInstance();
+        File[] listOfFiles = manipulator.getFiles(Paths.get(Constants.DOWNLOAD_PATH, entity.substring(0, 1), entity).toString());
+        ExecutorService executor = Executors.newCachedThreadPool();
+        for (File file : listOfFiles) {
+            if (file.isFile()) {
+                String filePath = Paths.get(Constants.DOWNLOAD_PATH, entity.substring(0, 1), entity, file.getName()).toString();
+                String targetPath = manipulator.createCloudObject(entity, file.getName());
+                executor.execute(new UploadImageFromLocalTask(filePath, targetPath));
             }
-        } catch(Exception e){
-            e.printStackTrace();
         }
-    }
-
-    public String getImageName(String imageUrl) throws URISyntaxException {
-        return Paths.get(new URI(imageUrl).getPath()).getFileName().toString();
-    }
-
-    public void save(String imageUrl, String imageName, String entity) {
-        String directoryCharacter = "/";
-        String directoryPath = Paths.get(downloadPath + directoryCharacter + entity.substring(0, 1) + directoryCharacter + entity).toString();
-        createDirectory(directoryPath);
-        String destinationFilePath = Paths.get(directoryPath + directoryCharacter + imageName).toString();
-        try (InputStream inputStream = new URL(imageUrl).openStream()) {
-            Files.copy(inputStream, Paths.get(destinationFilePath));
-        } catch (IOException e) {
-            System.out.println("Exception Occurred " + e);
-        }
+//        deleteDirectory(Paths.get(Constants.DOWNLOAD_PATH, entity.substring(0, 1), entity).toString());
     }
 }
